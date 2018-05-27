@@ -5,51 +5,68 @@
 #include <string>
 #include <iostream>
 #include <vector>
-#include <memory.h>
+#include <memory>
 #include <unistd.h>
 #include <wait.h>
+#include <sstream>
+#include <cstring>
+#include <string>
+#include <cerrno>
 
-std::vector<char*> split(std::string &s) {
-    char* ss = strdup(s.c_str());
-    std::vector<char*> v;
-
-    char* arg = strtok(ss, " ");
-    while (arg != NULL) {
-        v.push_back(arg);
-        arg = strtok(NULL, " \n\r\t");
+char ** split(std::string const& s) {
+    std::vector<std::string> v;
+    auto in = std::istringstream(s);
+    std::string arg;
+    while(in >> arg) {
+        v.emplace_back(std::move(arg));
     }
-    v.push_back('\0');
-    return v;
+
+    auto sz = v.size();
+    auto res = new char* [sz+1];
+    for (int i = 0; i < sz; ++i) {
+        res[i] = const_cast<char*>(v[i].data());
+    }
+    res[sz] = nullptr;
+    return res;
 }
 
-void execute(char **args) {
+void _perror(std::string const& message) {
+    std::cerr << message << std::endl << strerror(errno) << std::endl;
+}
+
+void execute(char * args[], char * envp[]) {
     pid_t pid;
     int status;
 
     pid = fork();
     if(pid == 0) {
-        if(execvp(args[0], args) == -1) {
-            perror("Execution is failed.");
+        if(execve(args[0], args, envp) == -1) {
+            _perror("Execution is failed.");
             exit(-1);
         }
     } else if(pid < 0) {
-        perror("Error forking.");
+        _perror("Error forking.");
     } else {
         if(waitpid(pid, &status, 0) == -1) {
-            perror("Parent process is failed.");
+            _perror("Parent process is failed.");
         }
     }
 }
 
-int main(int argc, char ** argv) {
+void _print() {
+    std::cout << "$ ";
+    std::cout.flush();
+}
+
+int main(int argc, char * argv[], char * envp[]) {
     std::string line;
-    printf("$ ");
+    _print();
     while(std::getline(std::cin, line)) {
         if(line == "exit") break;
-        std::vector<char*> args = split(line);
-        execute(args.data());
-        free(args[0]);
-        printf("$ ");
+        auto args = split(line);
+        auto uptr = std::unique_ptr<char*[]>(args);
+        execute(uptr.get(), envp);
+        _print();
     }
 
     return 0;
