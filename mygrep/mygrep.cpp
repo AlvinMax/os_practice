@@ -56,8 +56,6 @@ void do_grep(char* filename, char * &pattern) {
 
     while(fgets(buf, BUFF_SIZE + 1, f)) {
         strncpy(&check[BUFF_SIZE], buf, sizeof(buf));
-        if(strcmp(filename, "./qq") == 0) {
-        }
         if(strstr(check, pattern) != nullptr) {
               struct stat sb{};
               if(stat(filename, &sb) == -1) {
