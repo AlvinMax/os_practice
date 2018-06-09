@@ -1,0 +1,3 @@
+cd loadable
+make
+cd ..
